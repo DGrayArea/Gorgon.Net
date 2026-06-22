@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { BrowserLayout } from "../components/BrowserLayout";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -13,13 +14,6 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  return (
-    <div style={{ width: "100%", height: "100vh", background: "#F0F2F5" }}>
-      <iframe
-        src="/aegis.html"
-        title="Aegis sidebar prototype"
-        style={{ width: "100%", height: "100%", border: 0, display: "block" }}
-      />
-    </div>
-  );
+  return <BrowserLayout />;
 }
+
