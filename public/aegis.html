@@ -383,6 +383,30 @@
   .preview-frame{
     width:380px;min-height:100vh;background:var(--bg);position:relative;
   }
+  /* Before-You-Sign empty + pending states */
+  .tx-empty{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:6px 0 2px}
+  .tx-empty-icon{
+    width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    background:rgba(120,140,170,.10);color:var(--muted);margin-bottom:4px;
+  }
+  .tx-empty-icon i{width:16px;height:16px}
+  #txCard.pending{
+    border-color:var(--warn);box-shadow:0 0 0 3px rgba(245,158,11,.18);
+    animation:txPulse 1.6s ease-out 1;
+  }
+  #txCard.pending.crit{
+    border-color:var(--danger);box-shadow:0 0 0 3px rgba(239,68,68,.22);
+  }
+  @keyframes txPulse{
+    0%{box-shadow:0 0 0 0 rgba(245,158,11,.55)}
+    100%{box-shadow:0 0 0 14px rgba(245,158,11,0)}
+  }
+  #txPendingPill.crit{background:rgba(239,68,68,.15);color:var(--danger)}
+  [data-sim-btn]{
+    font-size:10px;padding:4px 8px;border-radius:6px;border:1px dashed var(--border);
+    background:transparent;color:var(--muted);cursor:pointer;
+  }
+  [data-sim-btn]:hover{color:var(--text);border-color:var(--muted)}
 </style>
 </head>
 <body>
