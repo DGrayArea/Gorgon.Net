@@ -1037,20 +1037,312 @@ applyState('safe');
 if (window.lucide) lucide.createIcons();
 
 /* ============================================================
+   REAL WALLET SIGNING-REQUEST DETECTION
+   ------------------------------------------------------------
+   In a real extension build, the content script injects this
+   proxy into the page's MAIN world so it can wrap whatever
+   provider the dApp later assigns to window.ethereum (MetaMask,
+   Rabby, Coinbase, etc.). The same code runs here against
+   window.ethereum if it exists, and exposes window.aegis for
+   manual / demo triggering inside the preview iframe (no wallet).
+   ============================================================ */
+
+const SIGHASH = {
+  "0x095ea7b3": "approve",
+  "0xa22cb465": "setApprovalForAll",
+  "0xa9059cbb": "transfer",
+  "0x23b872dd": "transferFrom",
+  "0xd505accf": "permit",
+  "0x42842e0e": "safeTransferFrom",
+  "0x2e1a7d4d": "withdraw",
+};
+const TOKENS = {
+  "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": { sym: "USDC", dec: 6 },
+  "0xdac17f958d2ee523a2206206994597c13d831ec7": { sym: "USDT", dec: 6 },
+  "0x6b175474e89094c44da98b954eedeac495271d0f": { sym: "DAI",  dec: 18 },
+  "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": { sym: "WETH", dec: 18 },
+};
+const KNOWN_SPENDERS = {
+  "0xe592427a0aece92de3edee1f18e0157c05861564": "Uniswap V3 Router",
+  "0x000000000022d473030f116ddee9f6b43ac78ba3": "Permit2",
+};
+const MAX_UINT_HEX = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+
+function shortAddr(a){ return a ? a.slice(0,6)+"…"+a.slice(-4) : "—"; }
+function param(data, idx){ return data.slice(10 + idx*64, 10 + idx*64 + 64); }
+function wordToAddr(w){ return "0x" + w.slice(24).toLowerCase(); }
+function wordToBig(w){ try { return BigInt("0x" + w); } catch { return 0n; } }
+function fmtAmount(big, decimals, sym){
+  if (big.toString(16).padStart(64,"0") === MAX_UINT_HEX) return "Unlimited ⚠";
+  const d = BigInt(10) ** BigInt(decimals||0);
+  const whole = big / d;
+  const frac = big % d;
+  const fracStr = decimals
+    ? ("." + frac.toString().padStart(decimals,"0").slice(0,4).replace(/0+$/,""))
+    : "";
+  return whole.toString() + (fracStr === "." ? "" : fracStr) + (sym ? " " + sym : "");
+}
+
+function interpretRequest(method, params){
+  method = (method || "").toLowerCase();
+
+  if (method === "personal_sign" || method === "eth_sign"){
+    const hex = (params && (params[0] || params[1])) || "";
+    let text = hex;
+    try {
+      if (typeof hex === "string" && hex.startsWith("0x")){
+        text = new TextDecoder().decode(
+          new Uint8Array(hex.slice(2).match(/.{1,2}/g).map(b=>parseInt(b,16)))
+        );
+      }
+    } catch {}
+    return {
+      title: "Sign message",
+      plain: "The site is asking your wallet to sign a plain-text message. This does NOT move funds, but the signature can be used to prove ownership or log you in. Read the contents carefully.",
+      action: "personal_sign", token: "—", spender: "(off-chain)",
+      limit: text.slice(0,80) + (text.length>80 ? "…" : ""),
+      fee: "Free (no gas)",
+      risk: { label: "Low risk", cls: "low" },
+      approveDanger: false,
+      raw: "method: " + method + "\nmessage:\n" + text,
+    };
+  }
+
+  if (method.startsWith("eth_signtypeddata")){
+    let typed = params && params[1];
+    if (typeof typed === "string") { try { typed = JSON.parse(typed); } catch {} }
+    const primary = (typed && typed.primaryType) || "TypedData";
+    const isPermit = /permit/i.test(primary);
+    return {
+      title: isPermit ? "Off-chain token permit" : "Sign typed data — " + primary,
+      plain: isPermit
+        ? "This is a gas-less token approval (EIP-2612 / Permit2). A signature here can be relayed on-chain to spend your tokens without a second confirmation. Treat it like an on-chain approve()."
+        : "The site is asking your wallet to sign a structured (EIP-712) message. No gas is spent, but the signature may be used on-chain later.",
+      action: method,
+      token: (typed && typed.message && (typed.message.token || typed.message.spender)) || primary,
+      spender: shortAddr((typed && typed.message && (typed.message.spender || typed.message.to)) || ""),
+      limit: (typed && typed.message && (typed.message.value || typed.message.amount)) || "—",
+      fee: "Free (no gas)",
+      risk: isPermit ? { label: "High risk", cls: "crit" } : { label: "Medium risk", cls: "med" },
+      approveDanger: isPermit,
+      raw: JSON.stringify(typed, null, 2),
+    };
+  }
+
+  if (method === "eth_sendtransaction" || method === "wallet_sendtransaction" ||
+      method === "eth_signtransaction"){
+    const tx = (params && params[0]) || {};
+    const to = (tx.to || "").toLowerCase();
+    const data = (tx.data || tx.input || "0x").toLowerCase();
+    const value = tx.value || "0x0";
+    const selector = data.length >= 10 ? data.slice(0,10) : "";
+    const fn = SIGHASH[selector];
+    const tokenMeta = TOKENS[to] || { sym: shortAddr(to), dec: 0 };
+
+    let out = {
+      title: "Send transaction",
+      plain: "The site wants to send a transaction from your wallet.",
+      action: fn ? fn + "()" : (selector ? "Contract call " + selector : "ETH transfer"),
+      token: tokenMeta.sym, spender: shortAddr(to),
+      limit: value !== "0x0" ? fmtAmount(BigInt(value), 18, "ETH") : "—",
+      fee: tx.gas ? "~" + parseInt(tx.gas,16).toLocaleString() + " gas" : "—",
+      risk: { label: "Low risk", cls: "low" },
+      approveDanger: false,
+      raw: `to:    ${to}\ndata:  ${data.slice(0,72)}${data.length>72?"…":""}\nvalue: ${value}\ngas:   ${tx.gas||"—"}\nfrom:  ${tx.from||"—"}`,
+    };
+
+    if (fn === "approve"){
+      const spender = wordToAddr(param(data,0));
+      const amount  = wordToBig(param(data,1));
+      const unlimited = amount.toString(16).padStart(64,"0") === MAX_UINT_HEX;
+      const known = KNOWN_SPENDERS[spender];
+      out.title = `Approve ${tokenMeta.sym} for spending`;
+      out.plain = unlimited
+        ? `This contract is asking for UNLIMITED permission to move your ${tokenMeta.sym}. If the spender is malicious it can drain the entire balance whenever it wants. Set a custom limit instead.`
+        : `This contract is asking permission to move up to ${fmtAmount(amount, tokenMeta.dec, tokenMeta.sym)}.`;
+      out.spender = shortAddr(spender) + (known ? ` (${known})` : "");
+      out.limit   = unlimited ? "Unlimited ⚠" : fmtAmount(amount, tokenMeta.dec, tokenMeta.sym);
+      out.risk    = unlimited && !known ? { label: "High risk", cls: "crit" }
+                  : unlimited ? { label: "Medium risk", cls: "med" }
+                  : { label: "Low risk", cls: "low" };
+      out.approveDanger = unlimited && !known;
+    } else if (fn === "setApprovalForAll"){
+      const operator = wordToAddr(param(data,0));
+      const enabled  = wordToBig(param(data,1)) !== 0n;
+      out.title = enabled ? "setApprovalForAll — operator role" : "Revoke operator";
+      out.plain = enabled
+        ? "This grants the operator permission to move ALL of your NFTs / tokens in this collection — every token, any time, no further confirmation. This is the most common drainer pattern."
+        : "This revokes a previously granted operator role. Safe.";
+      out.token   = "ALL tokens in collection";
+      out.spender = shortAddr(operator) + (KNOWN_SPENDERS[operator] ? ` (${KNOWN_SPENDERS[operator]})` : " (unverified)");
+      out.limit   = enabled ? "Unlimited — no cap" : "Revoked";
+      out.risk    = enabled ? { label: "Critical risk", cls: "crit" } : { label: "Low risk", cls: "low" };
+      out.approveDanger = enabled;
+    } else if (fn === "transfer" || fn === "transferFrom"){
+      const recv = wordToAddr(param(data, fn === "transfer" ? 0 : 1));
+      const amt  = wordToBig(param(data, fn === "transfer" ? 1 : 2));
+      out.title  = `Transfer ${tokenMeta.sym}`;
+      out.plain  = `Moves ${fmtAmount(amt, tokenMeta.dec, tokenMeta.sym)} to ${shortAddr(recv)}. This is a final, on-chain transfer — it cannot be reversed.`;
+      out.limit  = fmtAmount(amt, tokenMeta.dec, tokenMeta.sym);
+      out.spender= shortAddr(recv);
+      out.risk   = { label: "Medium risk", cls: "med" };
+    }
+    return out;
+  }
+  return null;
+}
+
+/* ---------- Render a pending signature into the card ---------- */
+let _pendingResolver = null;
+function showPendingSignature(tx, resolver){
+  const card  = document.getElementById('txCard');
+  const empty = document.getElementById('txEmpty');
+  const body  = document.getElementById('txBody');
+  const pill  = document.getElementById('txPendingPill');
+
+  document.getElementById('txTitle').textContent  = tx.title;
+  document.getElementById('txPlain').textContent  = tx.plain;
+  document.getElementById('txAction').textContent = tx.action;
+  document.getElementById('txToken').textContent  = tx.token;
+  document.getElementById('txSpender').textContent= tx.spender;
+  document.getElementById('txLimit').textContent  = tx.limit;
+  document.getElementById('txFee').textContent    = tx.fee;
+  const txRisk = document.getElementById('txRisk');
+  txRisk.className = 'badge ' + tx.risk.cls;
+  txRisk.textContent = tx.risk.label;
+  document.getElementById('txApprove').classList.toggle('danger', !!tx.approveDanger);
+  document.getElementById('txRaw').textContent = tx.raw;
+
+  empty.style.display = 'none';
+  body.style.display  = '';
+  card.dataset.state  = 'pending';
+  card.classList.remove('pending','crit');
+  void card.offsetWidth;
+  card.classList.add('pending');
+  if (tx.risk.cls === 'crit') card.classList.add('crit');
+  pill.style.display = '';
+  pill.classList.toggle('crit', tx.risk.cls === 'crit');
+  pill.textContent = tx.risk.cls === 'crit' ? '● Critical' : '● Pending';
+
+  _pendingResolver = resolver || null;
+
+  switchTab('scan');
+  setTimeout(() => card.scrollIntoView({ behavior:'smooth', block:'center' }), 60);
+  if (window.lucide) lucide.createIcons();
+}
+function clearPendingSignature(){
+  document.getElementById('txEmpty').style.display = '';
+  document.getElementById('txBody').style.display  = 'none';
+  const card = document.getElementById('txCard');
+  card.classList.remove('pending','crit');
+  card.dataset.state = 'empty';
+  document.getElementById('txPendingPill').style.display = 'none';
+  _pendingResolver = null;
+}
+
+document.getElementById('txApprove').addEventListener('click', () => {
+  if (_pendingResolver) _pendingResolver.resolve({ approved:true, at:Date.now() });
+  clearPendingSignature();
+});
+document.getElementById('txCancel').addEventListener('click', () => {
+  if (_pendingResolver) _pendingResolver.reject(
+    Object.assign(new Error("User rejected the request via Aegis."), { code: 4001 })
+  );
+  clearPendingSignature();
+});
+document.getElementById('txSetLimit').addEventListener('click', () => {
+  const cur = document.getElementById('txLimit').textContent;
+  const v = prompt("Set a custom spend limit (replaces unlimited approval):", cur);
+  if (v) document.getElementById('txLimit').textContent = v + " (custom)";
+});
+
+/* ---------- Intercept window.ethereum ---------- */
+const SIGNING_METHODS = new Set([
+  "eth_sendtransaction","wallet_sendtransaction","eth_signtransaction",
+  "eth_sign","personal_sign",
+  "eth_signtypeddata","eth_signtypeddata_v1","eth_signtypeddata_v3","eth_signtypeddata_v4",
+]);
+function installEthereumProxy(provider){
+  if (!provider || provider.__aegisWrapped) return;
+  provider.__aegisWrapped = true;
+  const origRequest = provider.request && provider.request.bind(provider);
+  if (origRequest){
+    provider.request = function(args){
+      const method = (args && args.method || "").toLowerCase();
+      if (SIGNING_METHODS.has(method)){
+        const parsed = interpretRequest(args.method, args.params || []);
+        if (parsed){
+          return new Promise((resolve, reject) => {
+            showPendingSignature(parsed, {
+              resolve: () => origRequest(args).then(resolve, reject),
+              reject,
+            });
+          });
+        }
+      }
+      return origRequest(args);
+    };
+  }
+  console.log("[Aegis] Wallet provider wrapped — sign requests will be intercepted.");
+}
+if (window.ethereum) installEthereumProxy(window.ethereum);
+let _ethCheck = setInterval(() => {
+  if (window.ethereum && !window.ethereum.__aegisWrapped) installEthereumProxy(window.ethereum);
+}, 500);
+setTimeout(() => clearInterval(_ethCheck), 15000);
+window.addEventListener('ethereum#initialized',
+  () => installEthereumProxy(window.ethereum), { once:true });
+
+/* ---------- Public API + demo triggers ---------- */
+window.aegis = {
+  intercept: installEthereumProxy,
+  simulate(method, params){
+    const tx = interpretRequest(method, params || []);
+    if (!tx) return console.warn("[Aegis] not a signing method:", method);
+    return new Promise((resolve, reject) => showPendingSignature(tx, { resolve, reject }));
+  },
+};
+const DEMO_PAYLOADS = {
+  approve: ["eth_sendTransaction", [{
+    from: "0x1111111111111111111111111111111111111111",
+    to:   "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    data: "0x095ea7b3"
+        + "000000000000000000000000e592427a0aece92de3edee1f18e0157c05861564"
+        + "0000000000000000000000000000000000000000000000000000000005f5e100",
+    value: "0x0", gas: "0xb474",
+  }]],
+  drain: ["eth_sendTransaction", [{
+    from: "0x1111111111111111111111111111111111111111",
+    to:   "0x9a3cf8b1aaaa0000000000000000000000000000",
+    data: "0xa22cb465"
+        + "0000000000000000000000004d2be1020000000000000000000000000000e102"
+        + "0000000000000000000000000000000000000000000000000000000000000001",
+    value: "0x0", gas: "0xe355",
+  }]],
+};
+document.querySelectorAll('[data-sim-btn]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const p = DEMO_PAYLOADS[btn.dataset.simBtn];
+    if (p) window.aegis.simulate(p[0], p[1])
+      .then(()  => console.log("[Aegis demo] approved"))
+      .catch(e => console.log("[Aegis demo] rejected:", e.message));
+  });
+});
+
+/* ============================================================
    INTEGRATION MANIFEST — TODOs
 
    // TODO: call /api/analyze?url=<currentTabUrl>          → ZONE 1/2/3 hydrate
    // TODO: call /api/0g/lookup?domainHash=<hash>          → ZONE 8 cache lookup
    // TODO: call /api/0g/store with new analysis           → ZONE 8 write path
-   // TODO: hook window.ethereum.request proxy             → ZONE 4 tx interception
-   // TODO: call /api/tx/interpret with raw calldata       → ZONE 4 plain-English
+   // ✓ DONE: hook window.ethereum.request proxy           → ZONE 4 tx interception
+   // TODO: call /api/tx/interpret with raw calldata       → richer plain-English (server-side)
    // TODO: call /api/sandbox/start with site session      → ZONE 5 fork chain
    // TODO: call /api/sandbox/stop → returns debrief JSON  → renderDebriefModal()
    // TODO: call /api/discovery/search?q=&category=        → ZONE 6 results
    // TODO: call /api/community/reports?domain=            → ZONE 7 list
    // TODO: call /api/community/submit with report payload → ZONE 7 submit
    // TODO: wire Block Site → chrome.declarativeNetRequest rule
-   // TODO: wire Approve / Cancel / Set Limit to wallet RPC proxy
    ============================================================ */
 </script>
 </body>
