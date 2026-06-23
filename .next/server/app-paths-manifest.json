@@ -4,5 +4,8 @@
   "/api/og/chat/route": "app/api/og/chat/route.js",
   "/api/og/models/route": "app/api/og/models/route.js",
   "/api/og/report/route": "app/api/og/report/route.js",
-  "/page": "app/page.js"
+  "/opengraph-image.png/route": "app/opengraph-image.png/route.js",
+  "/page": "app/page.js",
+  "/robots.txt/route": "app/robots.txt/route.js",
+  "/sitemap.xml/route": "app/sitemap.xml/route.js"
 }

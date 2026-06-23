@@ -3,8 +3,8 @@
 When you record your screen (using QuickTime, Loom, or OBS), follow this 2-minute script to guarantee you hit all the bounty requirements and impress the judges. 
 
 ## Preparation
-- Make sure the dev server is running (`npm run dev`) and you have `VITE_0G_API_KEY` set in your `.env` file.
-- Open `http://localhost:5173` in a fresh browser window.
+- Make sure the Next.js dev server is running (`npm run dev`) and you have `VITE_0G_API_KEY` (or `NEXT_PUBLIC_0G_API_KEY`) set in your `.env` file.
+- Open `http://localhost:3000` in a fresh browser window. You can also press `⌘ + K` at any time to focus the omnibox instantly.
 
 ---
 
@@ -33,6 +33,10 @@ When you record your screen (using QuickTime, Loom, or OBS), follow this 2-minut
 **Narration:** *"Users also have a persistent Web3 security companion. Powered by 0G's deepseek-v4-flash, it provides ultra-low latency context."*
 **Action:** Type: *"What is setApprovalForAll?"* and press Send.
 **Narration:** *"The streaming response is blazing fast, providing users with immediate, decentralized security advice without relying on centralized Web2 servers."*
+
+### 5. (2:00 - 2:30) Model Switcher
+**Action:** Click the **"0G Net"** tab in the sidebar. Use the dropdown to select a different model (e.g., `minimax-m3`). Then go back to the **"Ask AI"** tab.
+**Narration:** *"Gorgon is highly flexible. Users can dynamically switch the active inference model powering their security analysis, and the UI immediately applies it across all chat and audit contexts without reloading the page."*
 
 ---
 *Good luck with the submission!*

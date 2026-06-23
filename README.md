@@ -22,8 +22,8 @@ This project was built to showcase the power of the **0G Compute Network (Router
 
 ## 🛠️ Technology Stack
 
-- **Frontend**: React, TypeScript, Vite, TanStack Router
-- **Styling**: Tailwind CSS
+- **Frontend**: Next.js App Router, React 19, TypeScript
+- **Styling**: Tailwind CSS v4 (@tailwindcss/postcss)
 - **AI Network**: 0G Compute Network (Router API)
 - **Icons**: Lucide React
 - **Notifications**: Sonner
@@ -53,14 +53,17 @@ VITE_0G_API_KEY=sk-your-0g-api-key-here
 npm run dev
 ```
 
-Visit `http://localhost:5173` to experience the safe Web3 browser.
+Visit `http://localhost:3000` to experience the safe Web3 browser.
 
-## 🎥 Testing the Flow (Demo Script)
+## 🎥 Testing the Flow (Demo Video Requirement)
+
+As part of the bounty submission, a **Demo Video** is required. You can record a walkthrough demonstrating the following core paths:
 
 1. **Search**: Type `free mint` or `airdrop` in the Omnibox. See how Gorgon AI detects a high-risk query and uses the 0G network to summarize the risks.
 2. **Navigate**: Click on a known safe dApp (e.g., Uniswap) to see a Green trust score.
 3. **Audit**: Attempt to interact with a high-risk sandbox site. Watch the **Pre-Sign AI Audit** intercept the signature request, analyze the bytecode via 0G compute, and block the drainer attempt.
 4. **Chat**: Open the "Ask AI" tab to interact with the streaming 0G chatbot for Web3 advice.
+5. **Model Switcher**: Open the 0G Network tab and switch inference models dynamically.
 
 ## 🛣️ Future Roadmap
 

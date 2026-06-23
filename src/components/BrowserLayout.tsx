@@ -1382,6 +1382,7 @@ export function BrowserLayout({ initialQuery = "" }: { initialQuery?: string }) 
                     currentUrl={activeUrl}
                     currentScore={activeMeta.score}
                     currentSummary={activeMeta.summary}
+                    activeModel={activeModel}
                   />
                 </div>
               )}

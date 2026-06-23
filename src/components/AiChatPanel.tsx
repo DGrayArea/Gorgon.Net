@@ -27,6 +27,7 @@ interface AiChatPanelProps {
   currentUrl: string;
   currentScore: number;
   currentSummary: string;
+  activeModel: string;
 }
 
 // ── Static fallback responses (used when API key is not set) ─────────────────

@@ -1,0 +1,17 @@
+{
+  "name": "Gorgon.Net",
+  "short_name": "Gorgon",
+  "description": "AI-powered Web3 Search Engine and Browser",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07060A",
+  "theme_color": "#07060A",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
