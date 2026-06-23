@@ -93,6 +93,7 @@ export function AiChatPanel({ currentUrl, currentScore, currentSummary }: AiChat
     ogHistory.current = [];
     setMessages([
       {
+        id: crypto.randomUUID(),
         role: "ai",
         text: `Switched to **${currentUrl}** (Trust Score: ${currentScore}/100)\n\n${currentScore > 80 ? "✅ Looks safe! Ask me anything." : currentScore > 40 ? "⚠️ Some risk signals detected." : "⛔ HIGH RISK: DO NOT connect your wallet here."}`,
         timestamp: formatTime(),
@@ -306,11 +307,11 @@ Currently analyzing: ${currentUrl} (Trust Score: ${currentScore}/100). Keep answ
               {msg.role === "ai" && isTyping && idx === messages.length - 1 && msg.text === "" ? (
                 <StreamingText text="..." speed={1} />
               ) : (
-                <ReactMarkdown
-                  className="prose prose-invert max-w-none text-[11px] prose-p:leading-relaxed prose-headings:text-white prose-a:text-[#9F86FF] prose-strong:text-white prose-strong:font-bold prose-code:text-[#9F86FF] prose-code:bg-[#6C47FF]/10 prose-code:px-1 prose-code:rounded prose-pre:bg-[#10101C] prose-pre:border prose-pre:border-[#2B2B43] prose-ul:list-disc prose-ul:pl-4 prose-ol:list-decimal prose-ol:pl-4"
-                >
-                  {msg.text}
-                </ReactMarkdown>
+                <div className="prose prose-invert max-w-none text-[11px] prose-p:leading-relaxed prose-headings:text-white prose-a:text-[#9F86FF] prose-strong:text-white prose-strong:font-bold prose-code:text-[#9F86FF] prose-code:bg-[#6C47FF]/10 prose-code:px-1 prose-code:rounded prose-pre:bg-[#10101C] prose-pre:border prose-pre:border-[#2B2B43] prose-ul:list-disc prose-ul:pl-4 prose-ol:list-decimal prose-ol:pl-4">
+                  <ReactMarkdown>
+                    {msg.text}
+                  </ReactMarkdown>
+                </div>
               )}
               <div className="mt-1.5 flex items-center justify-between gap-2">
                 <span className="text-[9px] text-gray-600">{msg.timestamp}</span>

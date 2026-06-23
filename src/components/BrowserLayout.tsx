@@ -181,6 +181,7 @@ export function BrowserLayout({ initialQuery = "" }: { initialQuery?: string }) 
   const [simActionsCount, setSimActionsCount] = useState<number>(1);
   const [hiddenCallsCount, setHiddenCallsCount] = useState<number>(0);
   const [flagsCount, setFlagsCount] = useState<number>(0);
+  const [activeModel, setActiveModel] = useState("deepseek-v4-flash");
 
   // Signature Interception & Pre-sign AI Audit Modal
   const [isSignModalOpen, setIsSignModalOpen] = useState<boolean>(false);
@@ -451,7 +452,10 @@ export function BrowserLayout({ initialQuery = "" }: { initialQuery?: string }) 
         toast.success(`Navigated to ${cleanUrl} safely.`);
       } else {
         setActiveTabPanel("scan");
-        if (isMalicious) {
+        const targetScore = isNew 
+          ? (cleanUrl.includes("scam") || cleanUrl.includes("claim") || cleanUrl.includes("free") ? 28 : 78)
+          : ogGraphRegistry[cleanUrl]?.score ?? 78;
+        if (targetScore < 40) {
           toast.error(`Warning: High-risk domain blocked from executing auto-transactions.`);
         } else {
           toast.info(`Navigation complete. AI Audit generated.`);
@@ -1385,7 +1389,10 @@ export function BrowserLayout({ initialQuery = "" }: { initialQuery?: string }) 
               {/* T6: 0G Network Tab */}
               {activeTabPanel === "0g" && (
                 <div className="-m-4 h-[calc(100%+2rem)]" style={{ minHeight: 360 }}>
-                  <OgNetworkPanel />
+                  <OgNetworkPanel 
+                    selectedModel={activeModel}
+                    onModelChange={setActiveModel}
+                  />
                 </div>
               )}
             </div>

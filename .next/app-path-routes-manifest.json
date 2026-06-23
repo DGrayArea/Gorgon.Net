@@ -1,0 +1,8 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/api/og/chat/route": "/api/og/chat",
+  "/api/og/models/route": "/api/og/models",
+  "/api/og/report/route": "/api/og/report",
+  "/page": "/"
+}

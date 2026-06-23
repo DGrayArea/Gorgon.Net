@@ -1,0 +1,3 @@
+module.exports=[10988,a=>{"use strict";var b=a.i(25138);a.s(["default",0,function({children:a}){return(0,b.jsx)("html",{lang:"en",children:(0,b.jsx)("body",{className:"antialiased",children:a})})},"metadata",0,{title:"Gorgon.Net — AI Web3 Search Engine",description:"Search, discover, and securely browse Web3 protocols with AI-powered trust scoring. Powered by the 0G decentralized knowledge graph."}])},91485,a=>{a.n(a.i(10988))}];
+
+//# sourceMappingURL=Desktop_current_AI_Gorgon_Net_app_layout_tsx_05usgwl._.js.map
