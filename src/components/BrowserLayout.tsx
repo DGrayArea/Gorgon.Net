@@ -120,6 +120,7 @@ export function BrowserLayout({ initialQuery = "" }: { initialQuery?: string }) 
   const [isHomePage, setIsHomePage] = useState<boolean>(!isInitialSearch);
   const [homeInput, setHomeInput] = useState<string>(initialQuery);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [historySelectedIndex, setHistorySelectedIndex] = useState<number>(-1);
   const [isSearching, setIsSearching] = useState(false);
 
   // Session mount
@@ -153,6 +154,25 @@ export function BrowserLayout({ initialQuery = "" }: { initialQuery?: string }) 
     usdc: 5000.0,
     nfts: ["Bored Ape #4210", "Mutant Ape #8892"],
   });
+
+  // Real Wallet State
+  const [realWalletAddress, setRealWalletAddress] = useState<string | null>(null);
+
+  const connectWallet = async () => {
+    if (typeof window !== "undefined" && (window as any).ethereum) {
+      try {
+        const accounts = await (window as any).ethereum.request({ method: "eth_requestAccounts" });
+        if (accounts.length > 0) {
+          setRealWalletAddress(accounts[0]);
+          import("sonner").then(({ toast }) => toast.success("Wallet connected securely"));
+        }
+      } catch (err: any) {
+        import("sonner").then(({ toast }) => toast.error(err.message || "Failed to connect wallet"));
+      }
+    } else {
+      import("sonner").then(({ toast }) => toast.error("Please install MetaMask or another Web3 wallet."));
+    }
+  };
 
   // Sandbox Timeline & Debrief Logs
   const [timeline, setTimeline] = useState<TimelineEvent[]>([
@@ -751,8 +771,19 @@ export function BrowserLayout({ initialQuery = "" }: { initialQuery?: string }) 
             </button>
           </div>
 
-          {/* Sandbox Toggle Switch */}
-          <div className="flex items-center gap-2">
+          {/* Sandbox Toggle Switch & Wallet */}
+          <div className="flex items-center gap-3">
+            
+            <button
+              onClick={connectWallet}
+              className="px-3 py-1.5 bg-[#1B1B2C] hover:bg-[#2B2B3E] border border-[#2B2B43] rounded-lg text-[10px] font-bold text-gray-300 transition-colors flex items-center gap-1.5"
+            >
+              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+              {realWalletAddress ? `${realWalletAddress.slice(0, 6)}...${realWalletAddress.slice(-4)}` : "Connect Wallet"}
+            </button>
+            
+            <div className="w-px h-5 bg-[#2B2B43]"></div>
+
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1 select-none">
               <FlaskConical className="w-3.5 h-3.5 text-purple-400" />
               Sandbox Isolated Mode
@@ -839,15 +870,36 @@ export function BrowserLayout({ initialQuery = "" }: { initialQuery?: string }) 
                       id="home-search-input"
                       type="text"
                       value={homeInput}
-                      onChange={e => setHomeInput(e.target.value)}
+                      onChange={e => {
+                        setHomeInput(e.target.value);
+                        setHistorySelectedIndex(-1);
+                      }}
                       onKeyDown={e => {
-                        if (e.key === "Enter" && homeInput.trim()) {
-                          setIsSearching(true);
-                          setUrlInput(homeInput.trim());
-                          handleSearchOrNavigate(homeInput.trim());
-                          setTimeout(() => setIsSearching(false), 500); // Reset after navigation triggers
+                        if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          if (searchHistory.length > 0 && !homeInput) {
+                            setHistorySelectedIndex(prev => Math.min(prev + 1, searchHistory.length - 1));
+                          }
+                        } else if (e.key === "ArrowUp") {
+                          e.preventDefault();
+                          if (searchHistory.length > 0 && !homeInput) {
+                            setHistorySelectedIndex(prev => Math.max(prev - 1, -1));
+                          }
+                        } else if (e.key === "Enter") {
+                          let finalQuery = homeInput.trim();
+                          if (historySelectedIndex >= 0 && searchHistory[historySelectedIndex]) {
+                            finalQuery = searchHistory[historySelectedIndex];
+                            setHomeInput(finalQuery);
+                          }
+                          if (finalQuery) {
+                            setIsSearching(true);
+                            setUrlInput(finalQuery);
+                            handleSearchOrNavigate(finalQuery);
+                            setTimeout(() => setIsSearching(false), 500); // Reset after navigation triggers
+                          }
                         } else if (e.key === "Escape") {
                           setHomeInput("");
+                          setHistorySelectedIndex(-1);
                         }
                       }}
                       className="flex-1 bg-transparent border-0 py-4 px-3 text-sm outline-none text-[#ECECF3] placeholder-gray-500"
@@ -879,7 +931,9 @@ export function BrowserLayout({ initialQuery = "" }: { initialQuery?: string }) 
                         {searchHistory.map((h, i) => (
                           <button
                             key={i}
-                            className="w-full text-left px-4 py-2.5 text-xs text-gray-300 hover:bg-[#2B2B43] flex items-center gap-3 transition-colors"
+                            className={`w-full text-left px-4 py-2.5 text-xs flex items-center gap-3 transition-colors ${
+                              i === historySelectedIndex ? "bg-[#2B2B43] text-white" : "text-gray-300 hover:bg-[#2B2B43]"
+                            }`}
                             onMouseDown={(e) => {
                               // Use onMouseDown to prevent blur before click registers
                               e.preventDefault();
@@ -890,7 +944,7 @@ export function BrowserLayout({ initialQuery = "" }: { initialQuery?: string }) 
                               setTimeout(() => setIsSearching(false), 500);
                             }}
                           >
-                            <RotateCw className="w-3.5 h-3.5 text-gray-500" />
+                            <RotateCw className={`w-3.5 h-3.5 ${i === historySelectedIndex ? "text-gray-400" : "text-gray-500"}`} />
                             {h}
                           </button>
                         ))}

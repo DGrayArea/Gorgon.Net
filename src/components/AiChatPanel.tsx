@@ -11,6 +11,7 @@ import {
 import { CHAT_MODEL, type OgMessage } from "../lib/og-client";
 import { loadSession, saveSession } from "../lib/session";
 import { StreamingText } from "./StreamingText";
+import ReactMarkdown from "react-markdown";
 
 interface ChatMessage {
   id: string;
@@ -230,24 +231,6 @@ Currently analyzing: ${currentUrl} (Trust Score: ${currentScore}/100). Keep answ
     }
   };
 
-  // Simple bold markdown renderer
-  const renderText = (text: string) => {
-    return text.split("\n").map((line, i) => {
-      const parts = line.split(/(\*\*[^*]+\*\*)/g);
-      return (
-        <React.Fragment key={i}>
-          {parts.map((part, j) => {
-            if (part.startsWith("**") && part.endsWith("**")) {
-              return <span key={j} className="font-bold text-white">{part.slice(2, -2)}</span>;
-            }
-            return <span key={j}>{part}</span>;
-          })}
-          {i < text.split("\n").length - 1 && <br />}
-        </React.Fragment>
-      );
-    });
-  };
-
   return (
     <div className="flex flex-col h-full">
 
@@ -323,7 +306,11 @@ Currently analyzing: ${currentUrl} (Trust Score: ${currentScore}/100). Keep answ
               {msg.role === "ai" && isTyping && idx === messages.length - 1 && msg.text === "" ? (
                 <StreamingText text="..." speed={1} />
               ) : (
-                renderText(msg.text)
+                <ReactMarkdown
+                  className="prose prose-invert max-w-none text-[11px] prose-p:leading-relaxed prose-headings:text-white prose-a:text-[#9F86FF] prose-strong:text-white prose-strong:font-bold prose-code:text-[#9F86FF] prose-code:bg-[#6C47FF]/10 prose-code:px-1 prose-code:rounded prose-pre:bg-[#10101C] prose-pre:border prose-pre:border-[#2B2B43] prose-ul:list-disc prose-ul:pl-4 prose-ol:list-decimal prose-ol:pl-4"
+                >
+                  {msg.text}
+                </ReactMarkdown>
               )}
               <div className="mt-1.5 flex items-center justify-between gap-2">
                 <span className="text-[9px] text-gray-600">{msg.timestamp}</span>
