@@ -125,6 +125,19 @@ export function BrowserLayout({ initialQuery = "" }: { initialQuery?: string }) 
   const [historySelectedIndex, setHistorySelectedIndex] = useState<number>(-1);
   const [isSearching, setIsSearching] = useState(false);
 
+  // Listen for urlInput clearing to dynamically reset state
+  useEffect(() => {
+    if (urlInput === "") {
+      setIsHomePage(true);
+      setIsSearchMode(false);
+      setCurrentQuery("");
+      setHomeInput("");
+      setTabs((prevTabs) =>
+        prevTabs.map((t) => (t.id === activeTabId ? { ...t, url: "", title: "Gorgon.Net — Home" } : t))
+      );
+    }
+  }, [urlInput, activeTabId]);
+
   // Session mount
   useEffect(() => {
     const session = loadSession();
@@ -900,8 +913,18 @@ export function BrowserLayout({ initialQuery = "" }: { initialQuery?: string }) 
               onChange={(e) => setUrlInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearchOrNavigate(urlInput)}
               className="w-full bg-transparent border-0 py-2 pl-2.5 pr-20 text-xs outline-none text-[#ECECF3]"
-              placeholder="Search Web3 (e.g. 'best DEX') or enter a URL..."
+             placeholder="Search Web3 (e.g. 'best DEX') or enter a URL..."
             />
+            {/* Clear input button */}
+            {urlInput && (
+              <button
+                onClick={() => setUrlInput("")}
+                className="absolute right-9 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-all text-xs font-bold cursor-pointer"
+                title="Clear Search"
+              >
+                ×
+              </button>
+            )}
             {/* Shortcut hint badge */}
             {!urlInput && (
               <span className="absolute right-9 top-1/2 -translate-y-1/2 text-[8px] font-bold text-gray-500 border border-gray-700/50 px-1.5 py-0.5 rounded-md hidden md:block">
@@ -910,7 +933,7 @@ export function BrowserLayout({ initialQuery = "" }: { initialQuery?: string }) 
             )}
             {/* Mode indicator badge */}
             {urlInput.includes(" ") && (
-              <span className="absolute right-9 top-1/2 -translate-y-1/2 text-[8px] font-bold text-[#9F86FF] bg-[#6C47FF]/10 border border-[#6C47FF]/20 px-1.5 py-0.5 rounded-md">
+              <span className="absolute right-16 top-1/2 -translate-y-1/2 text-[8px] font-bold text-[#9F86FF] bg-[#6C47FF]/10 border border-[#6C47FF]/20 px-1.5 py-0.5 rounded-md">
                 AI
               </span>
             )}
