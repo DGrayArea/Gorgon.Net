@@ -133,7 +133,9 @@ export function BrowserLayout({ initialQuery = "" }: { initialQuery?: string }) 
       setCurrentQuery("");
       setHomeInput("");
       setTabs((prevTabs) =>
-        prevTabs.map((t) => (t.id === activeTabId ? { ...t, url: "", title: "Gorgon.Net — Home" } : t))
+        prevTabs.map((t) =>
+          t.id === activeTabId ? { ...t, url: "", title: "Gorgon.Net — Home" } : t,
+        ),
       );
     }
   }, [urlInput, activeTabId]);
@@ -352,7 +354,11 @@ export function BrowserLayout({ initialQuery = "" }: { initialQuery?: string }) 
 
     if (activeUrl && activeUrl.startsWith("search:")) {
       const query = activeUrl.replace("search:", "");
-      const isScamQuery = query.includes("airdrop") || query.includes("claim") || query.includes("free") || query.includes("mint");
+      const isScamQuery =
+        query.includes("airdrop") ||
+        query.includes("claim") ||
+        query.includes("free") ||
+        query.includes("mint");
       const score = isScamQuery ? 14 : 85;
       const ring = score > 80 ? "green" : score > 40 ? "amber" : "red";
       const color = score > 80 ? "#16A34A" : score > 40 ? "#F59E0B" : "#E53935";
@@ -381,7 +387,9 @@ export function BrowserLayout({ initialQuery = "" }: { initialQuery?: string }) 
           {
             state: isScamQuery ? "fail" : "pass",
             text: "Search Query Vector",
-            sub: isScamQuery ? "Matches high-risk phishing signatures" : "No active phishing signature match",
+            sub: isScamQuery
+              ? "Matches high-risk phishing signatures"
+              : "No active phishing signature match",
           },
           {
             state: "pass",
@@ -913,7 +921,7 @@ export function BrowserLayout({ initialQuery = "" }: { initialQuery?: string }) 
               onChange={(e) => setUrlInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearchOrNavigate(urlInput)}
               className="w-full bg-transparent border-0 py-2 pl-2.5 pr-20 text-xs outline-none text-[#ECECF3]"
-             placeholder="Search Web3 (e.g. 'best DEX') or enter a URL..."
+              placeholder="Search Web3 (e.g. 'best DEX') or enter a URL..."
             />
             {/* Clear input button */}
             {urlInput && (
@@ -1311,9 +1319,11 @@ export function BrowserLayout({ initialQuery = "" }: { initialQuery?: string }) 
             )}
           </div>
 
-          <aside className={`w-full lg:w-[360px] bg-[#0E0E17] border-t lg:border-t-0 lg:border-l border-[#212133] h-[500px] lg:h-auto overflow-hidden ${
-            !activeUrl ? "hidden" : "flex flex-col"
-          }`}>
+          <aside
+            className={`w-full lg:w-[360px] bg-[#0E0E17] border-t lg:border-t-0 lg:border-l border-[#212133] h-[500px] lg:h-auto overflow-hidden ${
+              !activeUrl ? "hidden" : "flex flex-col"
+            }`}
+          >
             {/* Sidebar Site Info Section */}
             <div className="p-4 border-b border-[#212133] bg-[#121220]">
               <div className="flex items-center gap-3">
